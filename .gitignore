@@ -2,7 +2,6 @@
 System.Runtime.dll
 *.dll
 _Addons/
-DashTemplates/
 DefaultBSProfiles/
 FontReg/
 fr/
@@ -30,3 +29,32 @@ x86/
 *.config
 *.exe
 *.dat
+_Library/
+AIM GS-DASH/
+AIM MXS/
+AudiConcept/
+ConceptDash_v4/
+ControlCenter/
+F1 2019 Mo#9991/
+Ferrari-599xx/
+GaugeLand/
+GS - Options
+MobileDash/
+MobileDashWithRelativeTimings/
+MYTEC/
+MYTEC C127/
+MYTEC C127 - System Info/
+MYTEC D153/
+Ressources/
+SimHub - BOSCH DDU8/
+SimHub - Fuel Box/
+SimHub - Global map/
+SimHub - Hud 1/
+SimHub - Leaderboard/
+SimHub - Live map/
+SimHub - Mini Leaderboard/
+SimHub - Sector Box/
+SimHub - Wheels Infos/
+SimHub Leaderboard/
+System Info/
+Ultimate F1 Dashboard v2/

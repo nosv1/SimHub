@@ -1,5 +1,5 @@
 # SimHub
-SimHub Dashboards by Mo#9991
+SimHub Dashboards by Mo#9991 (on Discord)
 
 1. Download https://www.simhubdash.com/download-2/
 2. Copy GarySwallowPluginSdk.dll to /Program Files (x86)/SimHub/

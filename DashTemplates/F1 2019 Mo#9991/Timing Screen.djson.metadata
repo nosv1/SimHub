@@ -1,0 +1,20 @@
+{
+  "Category": "Timing",
+  "Title": "TV Leaderboard",
+  "Description": "TV style Leaderboard with best laps and gaps to 1st for 20 players",
+  "Author": "Gary Swallow",
+  "ScreenCount": 1.0,
+  "InGameScreensIndexs": [
+    0
+  ],
+  "IdleScreensIndexs": [],
+  "MainPreviewIndex": 0,
+  "IsOverlay": false,
+  "ShowInTaskBar": true,
+  "Width": 196.0,
+  "Height": 500.0,
+  "OverlaySizeWarning": false,
+  "MetadataVersion": 2.0,
+  "EnableOnDashboardMessaging": true,
+  "PitScreensIndexs": []
+}

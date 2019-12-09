@@ -1,0 +1,15 @@
+ScrollSpeed = 3
+Theme = 1
+Gloss = 0
+Tyre = 0
+Type = 1
+FormulaOneReader = 0
+LapCount = 0
+OBSMode = 0
+Observed = 0
+Endurance = 0
+CustomThemeColour1 = #FF0080
+CustomThemeColour2 = #FFC0C5
+CustomThemeColour3 = #FF0000
+CustomThemeColourOther = #FFFFFF
+CustomThemeColourText = #EEFA00

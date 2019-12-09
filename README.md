@@ -11,3 +11,5 @@ SimHub Dashboards by Mo#9991
 8. Double-click 'F1 2019 Mo#9991.simhubdash', then click 'Install to Simhub Library'
 
 Open SimHub -> Dash Studio -> Manually Locate Dashboard
+
+https://i.gyazo.com/941f472794f4ad87453bc868742f2613.png

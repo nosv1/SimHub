@@ -14,3 +14,5 @@ Open SimHub -> Dash Studio -> Manually Locate Dashboard
 
 Latest Preview (Dec 9, 2019)
 https://i.gyazo.com/6606be84c3aaa4cebd364263eede0453.png
+
+Big thanks to Borderline#6033 for making me aware of this software and answering any questions I had whilst developing my own dashboard.

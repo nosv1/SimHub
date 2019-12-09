@@ -8,6 +8,7 @@ SimHub Dashboards by Mo#9991
 5. Copy /DashTemplates/GS - Options/ to /Program Files (x86)/SimHub/DashTemplates/
 6. Copy /DashTemplates/Formula[...].otf to /Program Files (x86)/SimHub/DashTemplates/
 8. Copy /DashTemplates/F1_2019 Mo#9991/ to /Program Files (x86)/SimHub/DashTemplates/
-7. Double-click each of the Formula[...].otf fonts, then install them.
+7. Double-click each of the Formula[...].otf fonts, then click 'Install'
+8. Double-click 'F1 2019 Mo#9991.simhubdash', then click 'Install to Simhub Library'
 
 Open SimHub -> Dash Studio -> Find Dashboard

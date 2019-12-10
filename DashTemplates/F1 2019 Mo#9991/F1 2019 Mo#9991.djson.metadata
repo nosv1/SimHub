@@ -1,15 +1,15 @@
 {
   "Category": null,
-  "Title": null,
+  "Title": "236",
   "Description": null,
   "Author": "Mo#9991",
   "ScreenCount": 6.0,
   "InGameScreensIndexs": [
     0,
     1,
-    2,
     3,
-    4
+    4,
+    5
   ],
   "IdleScreensIndexs": [
     0,
@@ -18,14 +18,14 @@
   "MainPreviewIndex": 0,
   "IsOverlay": false,
   "ShowInTaskBar": true,
-  "Width": 2213.0,
-  "Height": 231.0,
+  "Width": 2255.0,
+  "Height": 236.0,
   "OverlaySizeWarning": true,
   "MetadataVersion": 2.0,
   "EnableOnDashboardMessaging": true,
   "PitScreensIndexs": [
     0,
     1,
-    5
+    2
   ]
 }

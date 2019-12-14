@@ -1,105 +1,141 @@
-// Orignial Functions by Borderline#6033
-// Updated by Mo#9991
+// A Driver's Dash by Mo#9991
 
-// classes don't work but prototypes do :sunglasses:
-function StintDetails() { // UPDATE isInPitLane() IF YOU UPDATE THIS
-	this.startLap = getCurrentLap()
-	this.lastPitOdo = 0 // the sessionOdo at the time of last pit
-	this.lapCount = 0
-	this.startTireWears = getTireWears() // left front, right front, left rear, right rear
-	this.endTireWears = [0,0,0,0]
+t = 0
+
+/* --- SETUP --- */
+function StintDetails() { // update isInPitLane() if you update this
+	this.startOdo = sessionDetails.sessionOdo
+	this.stintOdo = null
+	this.lapNumber = 1
+
+	this.startPos = getPlayerPos()
+	this.endPos = null
+
+	this.startTireWears = getTireWears()
+	this.endTireWears = null
+	this.averageTireWear = null
+
 	this.startFuel = getCurrentFuel()
-	this.endFuel = 0
+	this.endFuel = null
+	this.averageFuel = null
+
 	this.startERS = getERS()
-	this.endERS = 0
-	this.lapTimes = [] // [Date(), lapTime]
-	this.startPosition = getPlayerPos() // current position when set (not grid), using 'start' for the 'start' of the stint
-	this.endPosition = 0 // current position when set (not final position), using 'end' for 'end' of the stint
+	this.endERS = null
+
+	this.lapTimes = [] // player lap times
 }
 function SessionDetails() {
+	this.sessionOdo = null
+	this.lapNumber = 1
+	this.trackLength = getTrackLength()
+	this.totalLaps = getTotalLaps()
+
+	this.currentMaxTireWear = null
+	this.predictedEndTireWear = null
+
 	this.startFuel = getCurrentFuel()
-	this.sectorTimes = [] // sectorTimes[0] ~ P1 = [endS1, endS2 ...] ~ [Date(), Date() ...]
-	this.startPos = getPlayerPos() // grid position
+	this.currentFuel = null
+	this.averageFuel = null
+	this.predictedEndFuel = null
+
+	this.opponents = setupOpponents() // array of opponent objects
+	this.lapTimes = [] // player lap times
+
 	this.inPitLane = false
 }
-StintDetails.prototype.toString = function() {
-	t = ""
-	for (prop in this) {
-		t += prop + ": " + this[prop] + "\n"
-	}
-	return t
-}
-SessionDetails.prototype.toString = function() {
-	t = ""
-	for (prop in this) {
-		t += prop + ": " + this[prop] + "\n"
-	}
-	return t
-}
-
-stintDetails = new StintDetails()
-sessionDetails = new SessionDetails()
 
 const numSectors = 30
-const numDrivers = 20
+sessionDetails = new SessionDetails()
+stintDetails = new StintDetails()
+
+function update() { // update everything every time
+	startOfRace = isStartOfRace()
+	inPitLane = isInPitLane()
+	lapNumber = getCurrentLap()
+
+	sessionDetails.sessionOdo = getSessionOdo()
+	stintDetails.stintOdo = getStintOdo()
+
+	sessionDetails.currentMaxTireWear = getMaxTireWear()
+	sessionDetails.predictedEndTireWear = predictEndTireWear()
+
+	sessionDetails.currentFuel = getCurrentFuel()
+	sessionDetails.predictedEndFuel = predictEndFuel()
+
+	t = updateSectors()
+
+	if (lapNumber != sessionDetails.lapNumber) {
+		stintDetails.lapTimes.push(getLastLapTime())
+	}
+
+	sessionDetails.lapNumber = getCurrentLap()
+}
+/* --- END SETUP --- */
+
 
 /* --- DELTAS --- */
-function updateSector(pos) { // pos is 1-20
-	if (pos != getPlayerPos()) {
-		updateSector(getPlayerPos())
-	}
-	pos -= 1
-	if ((getSessionOdo() == 0 && getLocalSpeed() == 0) || sessionDetails.sectorTimes.length == 0) { // on race start, reset sectors
-		sessionDetails.sectorTimes = []
-		for (var i = 0; i < numDrivers; i++) {
+function updateSectors() {
+	for (var pos = 0; pos < sessionDetails.opponents.length; pos++) {
+		opponentLapDistance = getLapDistance(pos+1)
+		if (opponentLapDistance < sessionDetails.opponents[pos].lapDistance || sessionDetails.opponents[pos].lapNumber == 0) { // detect new lap
+			sessionDetails.opponents[pos].lapNumber += 1
 			sectors = []
-			for (var j = 0; j < numSectors; j++) {
+			for (var i = 0; i < numSectors; i++) {
 				sectors.push(null)
 			}
-			sessionDetails.sectorTimes.push(sectors)
+			sessionDetails.opponents[pos].sectorTimes.push(sectors)
+			sessionDetails.opponents[pos].lapDistance = opponentLapDistance
 		}
-	}
-
-	lapDistance = getLapDistance(pos+1)
-	sector = parseInt(lapDistance * numSectors)
-	now = new Date().getTime()
-	if (now - sessionDetails.sectorTimes[pos][sector] > 30*1000 || sessionDetails.sectorTimes[pos][sector] === null) { // only update once per sector
-		sessionDetails.sectorTimes[pos][sector] = now
+		lapNumber = sessionDetails.opponents[pos].lapNumber - 1
+		sector = getSectorFromLapDistance(opponentLapDistance)
+		now = new Date().getTime()
+		if (now - sessionDetails.opponents[pos].sectorTimes[lapNumber][sector] > 30000 || sessionDetails.opponents[pos].sectorTimes[lapNumber][sector] === null) { // only update once per sector
+			sessionDetails.opponents[pos].sectorTimes[lapNumber][sector] = now
+		}
 	}
 }
 function getDeltaToOppPos(oppPos) { // oppPos is 1-20
 	playerPos = getPlayerPos()
-	playerSector = getSector(playerPos)
-	oppSector = getSector(oppPos)
-	sector = playerPos > oppPos ? playerSector : oppSector // if player is ahead, then get opp sector b/c they are behind, else get most recent player sector
-	return (sessionDetails.sectorTimes[playerPos-1][sector] - sessionDetails.sectorTimes[oppPos-1][sector]) / -1000
+	playerSectorLapNumber = getLastUpdatedSector(playerPos)
+	oppSectorLapNumber = getLastUpdatedSector(oppPos)
+
+	lapNumber = null
+	sector = null
+	if (playerSectorLapNumber[0] == oppSectorLapNumber[0] || playerSectorLapNumber[0] < oppSectorLapNumber[0]) { // same lap or player is behind, use player lap 
+		lapNumber = playerSectorLapNumber[0]
+		sector = playerSectorLapNumber[1] < oppSectorLapNumber[1] ? playerSectorLapNumber[1] : oppSectorLapNumber[1] // player is behind, use playerSector 
+	} else {
+		lapNumber = oppSectorLapNumber[0]
+		sector = oppSectorLapNumber[1]
+	}
+
+	return (sessionDetails.opponents[playerPos-1].sectorTimes[lapNumber][sector] - sessionDetails.opponents[oppPos-1].sectorTimes[lapNumber][sector]) / -1000
 }
 /* --- END DELTAS --- */
 
 
 /* --- TIRE WEAR --- */
-function getTireWears() { // returning left front, right front, left rear, right rear
+function getTireWears() { // returning [left front, right front, left rear, right rear]
 	return [
-		100-$prop('DataCorePlugin.GameData.NewData.TyreWearFrontLeft'), 
+		100-$prop('DataCorePlugin.GameData.NewData.TyreWearFrontLeft'), // game starts at 100 as tire life left, not giving tire wear
 		100-$prop('DataCorePlugin.GameData.NewData.TyreWearFrontRight'), 
 		100-$prop('DataCorePlugin.GameData.NewData.TyreWearRearLeft'), 
 		100-$prop('DataCorePlugin.GameData.NewData.TyreWearRearRight')
 	]
 }
 function getMaxTireWear() {
-	maxTireWear = Math.max.apply(Math, getTireWears())
+	maxTireWear = max(getTireWears())
 	return maxTireWear;
 }
-function getStartTireWears() {
-	isStartOfRace()
-	return stintDetails.startTireWears
-}
-function getEndTireWear() {
-	remainingDistance = (getTotalLaps() * getTrackLength()) - getSessionOdo()
-	maxTireWear = getMaxTireWear()
-	stintWearPerDistance = (maxTireWear - Math.max.apply(Math, getStartTireWears())) / getStintOdo()
+function predictEndTireWear() {
+	remainingDistance = (sessionDetails.totalLaps * sessionDetails.trackLength) - sessionDetails.sessionOdo
+	stintWearPerDistance = getWearPerDistance(sessionDetails.currentMaxTireWear)
 
-	return (stintWearPerDistance * remainingDistance) + maxTireWear
+	stintDetails.averageTireWear = stintWearPerDistance * sessionDetails.trackLength
+	return (stintWearPerDistance * remainingDistance) + sessionDetails.currentMaxTireWear
+}
+function getWearPerDistance(maxTireWear) {
+	return (maxTireWear - max(stintDetails.startTireWears)) / stintDetails.stintOdo
 }
 /* --- END TIRE WEAR --- */
 
@@ -108,17 +144,12 @@ function getEndTireWear() {
 function getCurrentFuel() {
 	return $prop('DataCorePlugin.GameData.NewData.Fuel')
 }
-function getStartFuel() {
-	isStartOfRace()
-	return sessionDetails.startFuel
-}
-function getEndFuel() {
-	sessionOdo = getSessionOdo()
-	remainingDistance = (getTotalLaps() * getTrackLength()) - sessionOdo
-	currentFuel = getCurrentFuel()
-	fuelUsagePerDistance = (currentFuel - getStartFuel()) / sessionOdo
+function predictEndFuel() {
+	remainingDistance = (sessionDetails.totalLaps * sessionDetails.trackLength) - sessionDetails.sessionOdo
+	fuelUsagePerDistance = (sessionDetails.startFuel - sessionDetails.currentFuel) / sessionDetails.sessionOdo
 
-	return (fuelUsagePerDistance * remainingDistance) + currentFuel
+	stintDetails.averageFuel = sessionDetails.averageFuel = fuelUsagePerDistance * sessionDetails.trackLength
+	return sessionDetails.currentFuel - (fuelUsagePerDistance * remainingDistance)
 }
 /* --- END FUEL --- */
 
@@ -131,12 +162,11 @@ function getPlayerPos() { // returns 1-20
 function isInPitLane() {
 	inPitLane = $prop('DataCorePlugin.GameData.NewData.IsInPit') == 1
 	if (inPitLane && !sessionDetails.inPitLane) { // player is entering pit box
-		stintDetails.lastPitOdo = getSessionOdo()
-		stintDetails.lapCount = getCurrentLap() - stintDetails.startLap + 1 // because pit entrance is before start finish line
+		stintDetails.endOdo = getSessionOdo()
+		stintDetails.endPosition = getPlayerPos()
 		stintDetails.endTireWears = getTireWears()
 		stintDetails.endFuel = getCurrentFuel()
 	  stintDetails.endERS = getERS()
-		stintDetails.endPosition = getPlayerPos()
 	} else if (!inPitLane && sessionDetails.inPitLane) { // player is leaving pit box
 		stintDetails = new StintDetails()
 	}
@@ -153,10 +183,70 @@ function getCurrentLapTime() { // returned as seconds
 	lapTime = $prop('DataCorePlugin.GameData.NewData.CurrentLapTime').toString().split(":")
 	return Number(lapTime[0]) * 3600 + Number(lapTime[1]) * 60 + Number(lapTime[2])
 }
+function getVisualTireCompound() {
+	compounds = {
+		16 : '2019 SOFT',
+		17 : '2019 MEDIUM',
+		18 : '2019 HARD',
+		7 : 'INTER',
+		8 : 'WET',
+		11 : 'SUPERSOFT',
+		12 : 'SOFT',
+		13 : 'MEDIUM',
+		14 : 'HARD',
+		15 : 'WET',
+		9 : 'MEDIUM',
+		10 : 'WET',
+		19 : 'ULTRASOFT',
+		20 : 'SUPERSOFT',
+		21 : 'SOFT',
+		22 : 'MEDIUM'
+	}
+	return compounds[$prop('DataCorePlugin.GameRawData.PlayerCarStatusData.m_tyreVisualCompound')]
+}
+function getLastLapTime() {
+	return $prop('DataCorePlugin.GameData.NewData.LastLapTime')
+} 
+function getSectorLastLapTime(sector) {
+	return $prop('DataCorePlugin.GameData.NewData.Sector'+sector+'LastLapTime')
+}
+
+// Stint Lap Times
+function getKeyStintLapTimes(lapTimes) { // best, worst, avg, possbile (based on best sectors)
+	best = null
+	worst = null
+	average = []
+	for (var i = 0; i < lapTimes.length; i++) {
+		lap = getSecondsFromLap(lapTimes[i])
+		average.push(lap)
+		if (best === null || lap < best) {
+			best = lap
+		}
+		if (worst === null || lap > best) {
+			best = lap
+		}
+	}
+	average = (average.reduce(function(a, b) {return a += b}, 0) / average.length).toFixed(3)
+	return [convertSecondsToLap(best), convertSecondsToLap(worst), convertSecondsToLap(average)]
+}
 
 // Opponent Stuff
 function getOpponentsCount() {
 	return $prop('DataCorePlugin.GameData.NewData.OpponentsCount')
+}
+function setupOpponents() {
+	opponents = []
+	for (var i = 0; i < getOpponentsCount(); i++) {
+		opponent = {
+			sectorTimes : [], // array of laps, with array of sector time stamps, sector time stamp array is appened in updateSectors() on new lap
+			lapNumber : 0,
+			lapDistance : null,
+			dnf : false,
+			inPitLane : false
+		}
+		opponents.push(opponent)
+	}
+	return opponents
 }
 
 // Position Stuff
@@ -168,8 +258,22 @@ function getLastPointsPos() { // based on formula (class)
 		return 8;
 	}
 }
-function getLastPos() { // returns 1-20, may need to adjust if this does not count for DNFs
-	return getOpponentsCount()
+function getLastPos() { // counting dnfs
+	return getOpponentsCount() //- getDNFCount()
+}
+function getDNFCount() { // NEEDS FIXING
+	for (var i = getOpponentsCount() - sessionDetails.opponentDNFs.length - 1; i > 0; i--) {
+		lastUpdatedSector = max(sessionDetails.sectorTimes[i])
+		now = new Date().getTime()
+		if (sessionDetails.opponentLapDistances[i] === null) { // if there's even been an update 
+			break
+		} else if (now - lastUpdatedSector > 30000) { // likely to have passed the last sector
+			if (sessionDetails.opponentLapDistances[i] == getLapDistance(i+1)) { // if same after 20 seconds, then DNF
+				sessionDetails.opponentDNFs.push(i)
+			}
+		}
+	}
+	return sessionDetails.opponentDNFs.length
 }
 
 // Better Odos
@@ -181,7 +285,7 @@ function getSessionOdo() {
 	return currentLapDistance + completedLapsDistance
 }
 function getStintOdo() {
-	return getSessionOdo() - stintDetails.lastPitOdo
+	return getSessionOdo() - stintDetails.startOdo
 }
 
 // Session Details
@@ -210,6 +314,7 @@ function isStartOfRace() {
 	if (getCurrentLapTime() == 0 && getCurrentLap() == 1) { // start of race
 		sessionDetails = new SessionDetails()
 		stintDetails = new StintDetails()
+
 		return true
 	} else {return false}
 }
@@ -218,13 +323,29 @@ function isStartOfRace() {
 function getSecondsFromLap(lap) { // lap is a string MM:SS.000
 	return parseInt(lap.slice(0,2)) * 60 + parseFloat(lap.slice(3))
 }
+function convertSecondsToLap(lap) { // 0.000
+	minutes = parseInt(lap / 60)
+	seconds = lap - (minutes * 60).toFixed(3)
+	return minutes + ":" + seconds.toString().padStart(6, "0")
+}
 function getLapDistance(pos) { // pos is 1-20
 	pos = (pos-1).toString().padStart(2, "0")
 	return $prop('GarySwallowDataPlugin.Opponent'+pos+'.LapDistance')
 }
-function getSector(pos) { // pos is 1-20
+function getSectorFromLapDistance(lapDistance) {
+	return parseInt(lapDistance * numSectors)
+}
+function getLastUpdatedSector(pos) { // pos is 1-20
 	pos -= 1
-	return sessionDetails.sectorTimes[pos].indexOf(Math.max.apply(Math, sessionDetails.sectorTimes[pos]))
+	lapNumber = sessionDetails.opponents[pos].lapNumber - 1
+	sector = sessionDetails.opponents[pos].sectorTimes[lapNumber].indexOf(max(sessionDetails.opponents[pos].sectorTimes[lapNumber]))
+	return sector == -1 ? [lapNumber, 0] : [lapNumber, sector]
+}
+function max(a) {
+	return Math.max.apply(Math, a)
+}
+function min(a) {
+	return Math.min.apply(Math, a)
 }
 /* ---  END SUPPORT --- */
 

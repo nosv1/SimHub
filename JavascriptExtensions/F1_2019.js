@@ -102,7 +102,7 @@ function update() { // update everything every time
 
 	updateSectors()
 
-	if (lapNumber != sessionDetails.lapNumber) {
+	if (lapNumber != sessionDetails.lapNumber) { // detect new lap
 		playerLap = new PlayerLap()
 		stintDetails.lapTimes.push(playerLap)
 		sessionDetails.lapTimes.push(playerLap)

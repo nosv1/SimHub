@@ -13,6 +13,7 @@ SimHub Dashboards by Mo#9991 (on Discord)
 Open SimHub -> Dash Studio -> Manually Locate Dashboard
 
 Latest Preview (Dec 9, 2019)
-https://github.com/nosv1/SimHub/blob/master/DashTemplates/F1%202019%20Mo%239991/F1%202019%20Mo%239991.djson.00.png
+In-Race: https://github.com/nosv1/SimHub/blob/master/DashTemplates/F1%202019%20Mo%239991/F1%202019%20Mo%239991.djson.00.png
+End of Stint: https://github.com/nosv1/SimHub/blob/master/DashTemplates/F1%202019%20Mo%239991/F1%202019%20Mo%239991.djson.01.png
 
 Big thanks to Borderline#6033 for making me aware of this software and answering any questions I had whilst developing my own dashboard.

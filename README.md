@@ -1,7 +1,7 @@
 # SimHub
 SimHub Dashboards by Mo#9991 (on Discord)
 
-1. Download https://www.simhubdash.com/download-2/
+1. Download and install https://www.simhubdash.com/download-2/
 2. Copy GarySwallowPluginSdk.dll to /Program Files (x86)/SimHub/
 3. Copy /JavascriptExtensions/F1_2019.js to /Program Files (x86)/SimHub/JavascriptExtensions/
 4. Copy /NCalcScripts/F1_2019.ini to /Program Files (x86)/SimHub/NCalcScripts/

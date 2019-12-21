@@ -20,4 +20,5 @@ Notes:
 - The pit-lane screen that appears when you enter the pit lane is still a work in progress. 
 
 Big thanks to Borderline#6033 for making me aware of this software and answering any questions I had whilst developing my own dashboard.
-paypal.me/moshots if you're feeling generous...
+
+https://paypal.me/moshots if you're feeling generous...

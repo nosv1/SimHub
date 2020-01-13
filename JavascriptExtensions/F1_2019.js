@@ -1,7 +1,7 @@
 /* 
 	A Driver's Dash by Mo#9991
 
-	The idea behind this dash, is to deliver the information the driver needs at a given moment. In race, you're interested in the general deltas between your closest rivals, and perhaps a few more. You need to know the current state of your wings, the amount of penalties, how much fuel you're using as well as how fast your tires are getting worn. Then upon entering the pit, you can go into detail about what your pace is, are you hitting the pace you need, where's everyone else at on track...
+	The idea behind this dash, is to deliver the information the driver needs at a given moment. In race, you're interested in the general deltas between your closest rivals, and perhaps a few more. You need to know the current state of your wings, the amount of penalties, how much fuel you're using as well as how fast your tires are degrading. Then upon entering the pit, you can go into detail about what your pace is, are you hitting the pace you need, where's everyone else at on track...
 	
 	The file itself, has 2 main 'classes/objets' stint and session details, as well an one function that runs a series of instructions using the support functions within this file, these support functions update the details 60 times a second, and reset at the start of the race as well as resetting the stint upon leavig the pit. 
 */
@@ -206,10 +206,12 @@ function getCurrentFuel() {
 }
 function predictEndFuel() {
 	var remainingDistance = (sessionDetails.totalLaps * sessionDetails.trackLength) - sessionDetails.sessionOdo
-	var fuelUsagePerDistance = (sessionDetails.startFuel - sessionDetails.currentFuel) / sessionDetails.sessionOdo
+	var sessionFuelUsagePerDistance = (sessionDetails.startFuel - sessionDetails.currentFuel) / sessionDetails.sessionOdo
+	var stintFuelUsagePerDistance = (stintDetails.startFuel - sessionDetails.currentFuel) / stintDetails.stintOdo
 
-	stintDetails.averageFuel = sessionDetails.averageFuel = fuelUsagePerDistance * sessionDetails.trackLength
-	return sessionDetails.currentFuel - (fuelUsagePerDistance * remainingDistance)
+	stintDetails.averageFuel = stintFuelUsagePerDistance * sessionDetails.trackLength
+	sessionDetails.averageFuel = sessionFuelUsagePerDistance * sessionDetails.trackLength
+	return sessionDetails.currentFuel - (sessionFuelUsagePerDistance * remainingDistance)
 }
 /* --- END FUEL --- */
 
@@ -314,21 +316,19 @@ function getLastPointsPos() { // based on formula (class)
 	}
 }
 function getLastPos() { // counting dnfs
-	return getOpponentsCount() //- getDNFCount()
+	return getOpponentsCount() - getDNFCount()
 }
-function getDNFCount() { // NEEDS FIXING
-	for (var i = getOpponentsCount() - sessionDetails.opponentDNFs.length - 1; i > 0; i--) {
-		var lastUpdatedSector = max(sessionDetails.sectorTimes[i])
-		var now = new Date().getTime()
-		if (sessionDetails.opponentLapDistances[i] === null) { // if there's even been an update 
-			break
-		} else if (now - lastUpdatedSector > 30000) { // likely to have passed the last sector
-			if (sessionDetails.opponentLapDistances[i] == getLapDistance(i+1)) { // if same after 20 seconds, then DNF
-				sessionDetails.opponentDNFs.push(i)
-			}
-		}
+function updateDNFs() { // updates opponent objects in sessionDetails
+	for (var i = 1; i <= getOpponentsCount(); i++) {
+		sessionDetails.opponents[i].dnf = getOpponentDNFStatusFromGame(i) == true ? true : false // could be null
 	}
-	return sessionDetails.opponentDNFs.length
+}
+function getDNFCount() {
+	count = 0
+	for (opponent in sessionDetails.opponents) {
+		count += opponent.dnf ? 1 : 0
+	}
+	return count
 }
 
 // Better Odos
@@ -375,6 +375,10 @@ function isStartOfRace() {
 }
 
 // Random Stuff
+function getOpponentDNFStatusFromGame(pos) { // pos is 1-20
+	pos -= 1
+	return $prop('GarySwallowDataPlugin.Opponent' + pos + '.DNFStatus')
+}
 function getWeather() {
 	return {
 		4: 'Heavy Rain',
@@ -419,7 +423,7 @@ function min(a) {
 /* ---  END SUPPORT --- */
 
 
-/* --- BORDERLINE STUFF */
+/* --- BORDERLINE STUFF --- */
 function lastLapPitIn() {
 	let isInPit = $prop('DataCorePlugin.GameData.NewData.IsInPit'),
 			currentLap = $prop('DataCorePlugin.GameData.NewData.CurrentLap');

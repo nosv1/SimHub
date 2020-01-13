@@ -16,7 +16,6 @@ Tutorial following steps above: https://youtu.be/PaHO1wHwVAQ
 Notes: 
 - When you first install and open SimHub, make sure you select the game.
 - When you first start a race, the dash may look a bit whack, within the first lap or so, it'll fix itself.
-- The deltas may get a bit whack if someone leaves mid-race. 
 - The pit-lane screen that appears when you enter the pit lane is still a work in progress. 
 
 Big thanks to Borderline#6033 for making me aware of this software and answering any questions I had whilst developing my own dashboard.

@@ -100,7 +100,7 @@ function update() { // update everything every time
 	sessionDetails.currentFuel = getCurrentFuel()
 	sessionDetails.predictedEndFuel = predictEndFuel()
 
-	updateSectors()
+	updateSectors(getLapDistances(getPlayerPos()))
 
 	if (lapNumber != sessionDetails.lapNumber) { // detect new lap
 		playerLap = new PlayerLap()
@@ -118,9 +118,9 @@ function update() { // update everything every time
 
 
 /* --- DELTAS --- */
-function updateSectors() {
+function updateSectors(lapDistances) {
 	for (var pos = 0; pos < sessionDetails.opponents.length; pos++) {
-		var opponentLapDistance = getLapDistance(pos+1)
+		var opponentLapDistance = lapDistances[0][pos]
 		var sector = getSectorFromLapDistance(opponentLapDistance)
 
 		if ((opponentLapDistance < .01 && sessionDetails.opponents[pos].lapDistance > .99) || sessionDetails.opponents[pos].lapNumber == 0) { // detect new lap, lap is 0 upon inital creation of opponent
@@ -272,6 +272,14 @@ function getLastLapTime() {
 function getSectorLastLapTime(sector) {
 	return $prop('DataCorePlugin.GameData.NewData.Sector'+sector+'LastLapTime').toString()
 }
+function getProximities(lapDistances) {
+	for (var i = 0; i < lapDistances[0].length; i++) {
+		oppLapDist = lapDistances[0][i]
+		playerLapDist = lapDistances[1]
+		lapDistances[0][i] = oppLapDist == 0 || oppLapDist > playerLapDist ? 1 : playerLapDist - oppLapDist
+	}
+	return lapDistances[0].sort() // now sorted based on how close opponenets are to player
+}
 
 // Stint Lap Times
 function getKeyStintLapTimes(lapTimes) { // best, worst, avg, possbile (based on best sectors)
@@ -304,6 +312,17 @@ function setupOpponents() {
 		opponents.push(opponent)
 	}
 	return opponents
+}
+function getLapDistances(playerPos) { // returning lapDistances[[all], player]
+	lapDistances = [[]]
+	for (var i = 0; i < getOpponentsCount(); i++){
+		lapDistance = getLapDistance(i+1)
+		lapDistances[0].push(lapDistance)
+		if (i+1 == playerPos) {
+			lapDistances.push(lapDistance)
+		}
+	}
+	return lapDistances
 }
 
 // Position Stuff
@@ -375,6 +394,15 @@ function isStartOfRace() {
 }
 
 // Random Stuff
+function inPractice() {
+	return [1, 2, 3, 4].indexOf($prop('DataCorePlugin.GameRawData.PacketSessionData.m_sessionType')) > -1	
+}
+function inQuali() {
+	return [5, 6, 7, 8, 9].indexOf($prop('DataCorePlugin.GameRawData.PacketSessionData.m_sessionType')) > -1
+}
+function inRace() {
+	return [10, 11].indexOf($prop('DataCorePlugin.GameRawData.PacketSessionData.m_sessionType')) > -1
+}
 function getOpponentDNFStatusFromGame(pos) { // pos is 1-20
 	pos -= 1
 	return $prop('GarySwallowDataPlugin.Opponent' + pos + '.DNFStatus')

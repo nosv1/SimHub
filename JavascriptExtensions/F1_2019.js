@@ -110,6 +110,7 @@ function update() { // update everything every time
 		stintDetails.bestLap = keyLapTimes[0]
 		stintDetails.worstLap = keyLapTimes[1]
 		stintDetails.averageLap = keyLapTimes[2]
+		stintDetails.lapNumber += 1
 	}
 
 	sessionDetails.lapNumber = lapNumber

@@ -48,14 +48,19 @@ function SessionDetails() {
 	this.averageFuel = null
 	this.predictedEndFuel = null
 
+	this.player = new Player()
 	this.opponents = setupOpponents() // array of opponent objects
 	this.lapTimes = [] // player lap times
 
 	this.inPitLane = false
 }
 
+function Player() {
+	this.playerPos = 100
+	this.opponentAverageLapTimes = [] // P-2, P-1, Player, P+1, P+2
+}
 function PlayerLap() {
-	this.lapTime = getLastLapTime()
+	this.lastLapTime = getLastLapTimePlayer()
 	this.sector1 = getSectorLastLapTime(1)
 	this.sector2 = getSectorLastLapTime(2)
 	this.sector3 = getSectorLastLapTime(3)
@@ -63,11 +68,13 @@ function PlayerLap() {
 
 function Opponent() {
 	this.opponent = -1
+	this.position = -1
 	this.sectorTimes = [] // array of laps, with array of sector time stamps, sector time stamp array is appened in updateSectors() on new lap
 	this.lapNumber = 0
 	this.lapDistance = null
 	this.dnf = false
 	this.inPitLane = false
+	this.lapTimes = []
 }
 Opponent.prototype.toString = function() {
 	sectors = ""
@@ -90,6 +97,10 @@ function update() { // update everything every time
 	var startOfRace = isStartOfRace()
 	var inPitLane = isInPitLane()
 	var lapNumber = getCurrentLap()
+	sessionDetails.player.playerPos = getPlayerPos()
+	for (var i = 0; i < sessionDetails.opponents.length; i++) {
+		sessionDetails.opponents[i].position = getOpponenetPosition(i)
+	}
 
 	sessionDetails.sessionOdo = getSessionOdo()
 	stintDetails.stintOdo = getStintOdo()
@@ -99,10 +110,12 @@ function update() { // update everything every time
 
 	sessionDetails.currentFuel = getCurrentFuel()
 	sessionDetails.predictedEndFuel = predictEndFuel()
+	
+	temp = getLapDistances() // temp[0] lapDistances, temp[1] lastLapTimes
+	updateSectors(temp[0], temp[1])
+	updateAverageLapTimes()
 
-	updateSectors(getLapDistances(getPlayerPos()))
-
-	if (lapNumber != sessionDetails.lapNumber) { // detect new lap
+	if (false && lapNumber != sessionDetails.lapNumber) { // detect new lap
 		playerLap = new PlayerLap()
 		stintDetails.lapTimes.push(playerLap)
 		sessionDetails.lapTimes.push(playerLap)
@@ -119,34 +132,65 @@ function update() { // update everything every time
 
 
 /* --- DELTAS --- */
-function updateSectors(lapDistances) {
+function updateSectors(lapDistances, lastLapTimes) { // lap distances, based on position, lapTimes not based on position
 	for (var pos = 0; pos < sessionDetails.opponents.length; pos++) {
+		opponent = null
+		opponentID = -1
+		for (var i = 0; i < sessionDetails.opponents.length; i++) {
+			if (sessionDetails.opponents[i].position == pos+1) {
+				opponent = sessionDetails.opponents[i]
+				opponentID = i
+				break
+			}
+		}
+
 		var opponentLapDistance = lapDistances[0][pos]
+		var opponentLastLapTime = lastLapTimes[0][opponentID]
+		var opponentLapNumber = getLapNumber(opponentID)
 		var sector = getSectorFromLapDistance(opponentLapDistance)
 
-		if ((opponentLapDistance < .01 && sessionDetails.opponents[pos].lapDistance > .99) || sessionDetails.opponents[pos].lapNumber == 0) { // detect new lap, lap is 0 upon inital creation of opponent
-			sessionDetails.opponents[pos].lapNumber += 1
+		sessionDetails.opponents[pos].lapDistance = opponentLapDistance
+
+		if (opponentLapNumber > opponent.lapNumber) { // new lap
+			sessionDetails.opponents[opponentID].lapNumber = opponentLapNumber
+
+			if (opponent.lapNumber > 1 && opponent.lapNumber - 1 > opponent.lapTimes.length) { // add lap time if lap number is > count of laps in array
+				sessionDetails.opponents[opponentID].lapTimes.push(opponentLastLapTime)
+			}
 			
 			var sectors = []
 			for (var i = 0; i < numSectors; i++) {
 				sectors.push(null)
 			}
-
-			sessionDetails.opponents[pos].sectorTimes.push(sectors)
+			sessionDetails.opponents[opponentID].sectorTimes.push(sectors) // new lap with null sectors
 		}
-		sessionDetails.opponents[pos].lapDistance = opponentLapDistance
 
-		var lapNumber = sessionDetails.opponents[pos].lapNumber - 1 // for indexing below, not setting any laps with this
+		var lapNumber = opponent.lapNumber - 1 // for indexing below, not setting any laps counts with this
 		var now = new Date().getTime()
-		if (now - sessionDetails.opponents[pos].sectorTimes[lapNumber][sector] > 30000 || sessionDetails.opponents[pos].sectorTimes[lapNumber][sector] === null) { // only update once per sector
-			sessionDetails.opponents[pos].sectorTimes[lapNumber][sector] = now
+		if (now - opponent.sectorTimes[lapNumber][sector] > 30000 || opponent.sectorTimes[lapNumber][sector] === null) { // only update once per sector
+			sessionDetails.opponents[opponentID].sectorTimes[lapNumber][sector] = now
 		}
 	}
 }
 function getDeltaToOppPos(oppPos) { // oppPos is 1-20
 	var playerPos = getPlayerPos()
-	var player = getLastUpdatedSector(playerPos)
-	var opponent = getLastUpdatedSector(oppPos)
+	var player = null
+	var playerID = null
+	var opponent = null
+	var opponentID = null
+	for (var i = 0; i < sessionDetails.opponents.length; i++) {
+		if (sessionDetails.opponents[i].position == oppPos) {
+			opponent = getLastUpdatedSector(sessionDetails.opponents[i]) // not sessionDetails opponent
+			opponentID = i
+		}
+		if (sessionDetails.opponents[i].position == playerPos) {
+			player = getLastUpdatedSector(sessionDetails.opponents[i]) // not sessionDetails player
+			playerID = i
+		} 
+		if (playerID != null && opponentID != null) {
+			break
+		}
+	}
 
 	var lapNumber = player.lapNumber <= opponent.lapNumber ? player.lapNumber : opponent.lapNumber // get lap number of guy behind
 	var sector = null 
@@ -170,9 +214,75 @@ function getDeltaToOppPos(oppPos) { // oppPos is 1-20
 		sector = opponent.sector
 	}
 
-	return (sessionDetails.opponents[playerPos-1].sectorTimes[lapNumber][sector] - sessionDetails.opponents[oppPos-1].sectorTimes[lapNumber][sector]) / -1000
+	return (sessionDetails.opponents[playerID].sectorTimes[lapNumber][sector] - sessionDetails.opponents[opponentID].sectorTimes[lapNumber][sector]) / -1000
 }
 /* --- END DELTAS --- */
+
+
+/* --- LAP TIMES --- */
+function updateAverageLapTimes() {
+	playerPos = sessionDetails.player.playerPos
+
+	lapTimes = [] // array of 5 most recent lapTimes of -2 to +2 of player position
+	medians = []
+	relevantLapTimes = []
+	for (var i = -2; i <= 2; i++) {
+		opponent = null
+		for (var j = 0; j < sessionDetails.opponents.length; j++) {
+			if (sessionDetails.opponents[j].position == playerPos+i) {
+				opponent = sessionDetails.opponents[j]
+				break
+			}
+		} // opponent may be null if player is p1, 2, 19, 20
+
+		if (playerPos+i < 0 || playerPos+i > sessionDetails.opponents.length - 1 || opponent.lapNumber <= 1) {
+			lapTimes.push([])
+			continue
+		}
+
+		lapTimes.push(
+			opponent.lapTimes.slice(
+				opponent.lapTimes.length - (
+					opponent.lapNumber < 5 ? opponent.lapTimes.length : 5
+				)
+			) // last 5 laps or since beginning of race
+		)
+	}
+
+	sessionDetails.player.opponentAverageLapTimes = []
+	for (var i = 0; i < lapTimes.length; i++) {
+		if (lapTimes[i].length == 0) {
+			sessionDetails.player.opponentAverageLapTimes.push("")
+			continue
+		}
+		
+		lapTimes[i].sort()
+		if (lapTimes[i].length > 1) {
+			medians.push((lapTimes[i][Math.floor((lapTimes[i].length - 1) / 2)] + lapTimes[i][Math.ceil((lapTimes[i].length - 1) / 2)]) / 2)
+		} else { medians.push(lapTimes[i][0]) }
+
+		t = []
+		for (var j = 0; j < lapTimes[i].length; j++) {
+			if (Math.abs(1 - lapTimes[i][j] / medians[i]) < .02) {
+				t.push(lapTimes[i][j])
+			}
+		}
+		relevantLapTimes.push(t)
+		
+		if (relevantLapTimes[i].length == 0) { // if lap 2 add quickest time
+			sessionDetails.player.opponentAverageLapTimes.push(
+				convertSecondsToLap(lapTimes[i][0]))
+		} else {
+			sessionDetails.player.opponentAverageLapTimes.push(
+				convertSecondsToLap(relevantLapTimes[i].reduce(
+						function(a, b) { return a += b }, 0
+					) / relevantLapTimes[i].length
+				)
+			)
+		}
+	}	
+}
+/* --- END LAP TIMES --- */
 
 
 /* --- TIRE WEAR --- */
@@ -267,9 +377,6 @@ function getVisualTireCompound() {
 	}
 	return compounds[$prop('DataCorePlugin.GameRawData.PlayerCarStatusData.m_tyreVisualCompound')]
 }
-function getLastLapTime() {
-	return $prop('DataCorePlugin.GameData.NewData.LastLapTime').toString()
-} 
 function getSectorLastLapTime(sector) {
 	return $prop('DataCorePlugin.GameData.NewData.Sector'+sector+'LastLapTime').toString()
 }
@@ -281,6 +388,9 @@ function getProximities(lapDistances) {
 	}
 	return lapDistances[0].sort() // now sorted based on how close opponenets are to player
 }
+function getLastLapTimePlayer() {
+	return $prop('DataCorePlugin.GameData.NewData.LastLapTime')
+}
 
 // Stint Lap Times
 function getKeyStintLapTimes(lapTimes) { // best, worst, avg, possbile (based on best sectors)
@@ -288,7 +398,7 @@ function getKeyStintLapTimes(lapTimes) { // best, worst, avg, possbile (based on
 	var worst = null
 	var average = []
 	for (var i = 0; i < lapTimes.length; i++) {
-		var lap = getSecondsFromLap(lapTimes[i].lapTime)
+		var lap = getSecondsFromLap(lapTimes[i].lastLapTime.slice(4))
 		average.push(lap)
 		if (best === null || lap < best) {
 			best = lap
@@ -314,16 +424,25 @@ function setupOpponents() {
 	}
 	return opponents
 }
-function getLapDistances(playerPos) { // returning lapDistances[[all], player]
+function getLapDistances() { // returning lapDistances[[all], player]
+	playerPos = sessionDetails.player.playerPos
 	lapDistances = [[]]
+	lastLapTimes = [[]]
 	for (var i = 0; i < getOpponentsCount(); i++){
 		lapDistance = getLapDistance(i+1)
 		lapDistances[0].push(lapDistance)
+		lapTime = getLastLapTime(i)
+		lastLapTimes[0].push(lapTime)
 		if (i+1 == playerPos) {
 			lapDistances.push(lapDistance)
+			lastLapTimes.push(lapTime)
 		}
 	}
-	return lapDistances
+	return [lapDistances, lastLapTimes]
+}
+function getOpponenetPosition(i) { // 0 - 19
+	var i = i.toString().padStart(2, "0")
+	return $prop('PluginDeMo.F1_Driver_'+i+'_Position')
 }
 
 // Position Stuff
@@ -419,13 +538,17 @@ function getWeather() {
 		6: 'Monsoon',
 	}[$prop('DataCorePlugin.GameRawData.PacketSessionData.m_weather')]
 }
-function getSecondsFromLap(lap) { // lap is a string HH:MM:SS.000
-	return parseInt(lap.slice(3,5)) * 60 + parseFloat(lap.slice(6))
+function getSecondsFromLap(lap) { // lap is a string M:SS.000
+	return parseInt(lap.slice(0,2)) * 60 + parseFloat(lap.slice(2))
 }
 function convertSecondsToLap(lap) { // 0.000
 	var minutes = parseInt(lap / 60)
 	var seconds = (lap - (minutes * 60)).toFixed(3)
 	return minutes + ":" + seconds.toString().padStart(6, "0")
+}
+function getLastLapTime(i) { // i is 0-19
+	var i = (i).toString().padStart(2, "0")
+	return $prop('PluginDeMo.F1_Driver_'+i+'_Last_Lap_Time (Not Pos)')
 }
 function getLapDistance(pos) { // pos is 1-20
 	var pos = (pos-1).toString().padStart(2, "0")
@@ -434,11 +557,15 @@ function getLapDistance(pos) { // pos is 1-20
 function getSectorFromLapDistance(lapDistance) {
 	return parseInt(lapDistance * numSectors)
 }
-function getLastUpdatedSector(pos) { // pos is 1-20
+function getLastUpdatedSector(driver) { // pos is 1-20
 	pos -= 1
-	var lapNumber = sessionDetails.opponents[pos].lapNumber - 1
-	var sector = sessionDetails.opponents[pos].sectorTimes[lapNumber].indexOf(max(sessionDetails.opponents[pos].sectorTimes[lapNumber]))
+	var lapNumber = driver.lapNumber - 1
+	var sector = driver.sectorTimes[lapNumber].indexOf(max(driver.sectorTimes[lapNumber]))
 	return sector == -1 ? {lapNumber: lapNumber, sector: 0} : {lapNumber: lapNumber, sector: sector} // when sectors are all null, return 0
+}
+function getLapNumber(i) { // pos is 0-19
+	var i = (i).toString().padStart(2, "0")
+	return $prop('PluginDeMo.F1_Driver_'+i+'_Lap_Number (Not Pos)')
 }
 function drsAvailable() {
 	return sessionDetails.lapNumber >= 3
